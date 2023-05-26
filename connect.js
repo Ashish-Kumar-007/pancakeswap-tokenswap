@@ -22,7 +22,7 @@ const connectToMetaMask = async () => {
   }
 };
 
-const routerAddress = "0xD99D1c33F9fC3444f8101754aBC46c52416550D1";
+const routerAddress = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
 const ABI = [
   {
     inputs: [
@@ -807,18 +807,24 @@ const interactWithContract = async () => {
     const accounts = await web3Provider.eth.getAccounts();
     const tokenIn = "0xFa60D973F7642B748046464e165A65B7323b0DEE";
     const tokenInContract = new web3Provider.eth.Contract(tokenABI, tokenIn);
-    const tokenOut = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
+    const tokenOut = "0xaB1a4d4f1D656d2450692D237fdD6C7f9146e814";
     const pancakeswap = new web3Provider.eth.Contract(ABI, routerAddress);
 
     try {
       // Get the token balance of the user's wallet
-      const tokenBalance = await tokenInContract.methods.balanceOf(accounts[0]).call();
-      
+      const tokenBalance = await tokenInContract.methods
+        .balanceOf(accounts[0])
+        .call();
+
       // Convert 1 CAKE to its corresponding token amount
       const amountIn = web3Provider.utils.toWei("1", "ether");
-      
+
       // Ensure that the token balance is sufficient for the input amount
-      if (web3Provider.utils.toBN(tokenBalance).lt(web3Provider.utils.toBN(amountIn))) {
+      if (
+        web3Provider.utils
+          .toBN(tokenBalance)
+          .lt(web3Provider.utils.toBN(amountIn))
+      ) {
         throw new Error("Insufficient token balance in the user's wallet.");
       }
 
@@ -826,10 +832,16 @@ const interactWithContract = async () => {
         .getAmountsOut(amountIn, [tokenIn, tokenOut])
         .call();
 
-      const slippageTolerance = 0.01; // 1% slippage tolerance
-      const amountOutMin = web3Provider.utils.toBN(amounts[1]).muln(1 - slippageTolerance);
-      const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-      
+      const slippageTolerance = 0.05; // 5% slippage tolerance
+      const amountOutMin = web3Provider.utils
+        .toBN(amounts[1])
+        .muln(1 - slippageTolerance);
+
+      const currentBlock = await web3Provider.eth.getBlock("latest");
+      const blockTime = 15; // Assuming average block time of 15 seconds
+      const deadlineBlock = 20; // Set the desired number of blocks in the future
+      const deadline = currentBlock.timestamp + blockTime * deadlineBlock;
+
       // Approve the router to spend the input amount of tokens
       await tokenInContract.methods.approve(routerAddress, amountIn).send({
         from: accounts[0],
@@ -851,15 +863,24 @@ const interactWithContract = async () => {
       console.log("Transaction successful!");
       // Display success message or perform additional actions
     } catch (error) {
-      console.error("Error interacting with the contract:", error);
+      if (error.name === "TransactionRevertedWithoutReasonError") {
+        const revertMessage = await web3Provider.eth.call({
+          to: error.contractAddress,
+          data: error.transactionHash,
+        });
+        console.error(
+          "Transaction reverted. Error message:",
+          web3Provider.utils.hexToUtf8(revertMessage)
+        );
+      } else {
+        console.error("Error interacting with the contract:", error);
+      }
       // Display error message or handle error appropriately
     }
   } catch (error) {
     console.error("Error interacting with the contract:", error);
   }
 };
-
-
 
 
 connectButton.addEventListener("click", connectToMetaMask);

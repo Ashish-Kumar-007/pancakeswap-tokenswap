@@ -1,6 +1,6 @@
 import Web3 from "web3";
 const web3 = new Web3("https://data-seed-prebsc-1-s1.binance.org:8545");
-const routerAddress = "0xD99D1c33F9fC3444f8101754aBC46c52416550D1";
+const routerAddress = "0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3";
 const ABI = [
   {
     inputs: [
@@ -434,64 +434,408 @@ const ABI = [
   { stateMutability: "payable", type: "receive" },
 ];
 
-//const gasPrice = web3.eth.getGasPrice();
-async function swapTokens(fromToken, toToken, amount, minimumAmountOut) {
+const tokenABI = [
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "owner",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "spender",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "value",
+        type: "uint256",
+      },
+    ],
+    name: "Approval",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "delegator",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "fromDelegate",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "toDelegate",
+        type: "address",
+      },
+    ],
+    name: "DelegateChanged",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "delegate",
+        type: "address",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "previousBalance",
+        type: "uint256",
+      },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "newBalance",
+        type: "uint256",
+      },
+    ],
+    name: "DelegateVotesChanged",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      {
+        indexed: true,
+        internalType: "address",
+        name: "previousOwner",
+        type: "address",
+      },
+      {
+        indexed: true,
+        internalType: "address",
+        name: "newOwner",
+        type: "address",
+      },
+    ],
+    name: "OwnershipTransferred",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: "address", name: "from", type: "address" },
+      { indexed: true, internalType: "address", name: "to", type: "address" },
+      {
+        indexed: false,
+        internalType: "uint256",
+        name: "value",
+        type: "uint256",
+      },
+    ],
+    name: "Transfer",
+    type: "event",
+  },
+  {
+    inputs: [],
+    name: "DELEGATION_TYPEHASH",
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "DOMAIN_TYPEHASH",
+    outputs: [{ internalType: "bytes32", name: "", type: "bytes32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "owner", type: "address" },
+      { internalType: "address", name: "spender", type: "address" },
+    ],
+    name: "allowance",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "approve",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "", type: "address" },
+      { internalType: "uint32", name: "", type: "uint32" },
+    ],
+    name: "checkpoints",
+    outputs: [
+      { internalType: "uint32", name: "fromBlock", type: "uint32" },
+      { internalType: "uint256", name: "votes", type: "uint256" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "decimals",
+    outputs: [{ internalType: "uint8", name: "", type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "subtractedValue", type: "uint256" },
+    ],
+    name: "decreaseAllowance",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "delegatee", type: "address" }],
+    name: "delegate",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "delegatee", type: "address" },
+      { internalType: "uint256", name: "nonce", type: "uint256" },
+      { internalType: "uint256", name: "expiry", type: "uint256" },
+      { internalType: "uint8", name: "v", type: "uint8" },
+      { internalType: "bytes32", name: "r", type: "bytes32" },
+      { internalType: "bytes32", name: "s", type: "bytes32" },
+    ],
+    name: "delegateBySig",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "delegator", type: "address" }],
+    name: "delegates",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "account", type: "address" }],
+    name: "getCurrentVotes",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getOwner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "account", type: "address" },
+      { internalType: "uint256", name: "blockNumber", type: "uint256" },
+    ],
+    name: "getPriorVotes",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "spender", type: "address" },
+      { internalType: "uint256", name: "addedValue", type: "uint256" },
+    ],
+    name: "increaseAllowance",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "_to", type: "address" },
+      { internalType: "uint256", name: "_amount", type: "uint256" },
+    ],
+    name: "mint",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "amount", type: "uint256" }],
+    name: "mint",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "name",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "nonces",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "", type: "address" }],
+    name: "numCheckpoints",
+    outputs: [{ internalType: "uint32", name: "", type: "uint32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "owner",
+    outputs: [{ internalType: "address", name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "renounceOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "symbol",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalSupply",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "recipient", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "transfer",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "sender", type: "address" },
+      { internalType: "address", name: "recipient", type: "address" },
+      { internalType: "uint256", name: "amount", type: "uint256" },
+    ],
+    name: "transferFrom",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "newOwner", type: "address" }],
+    name: "transferOwnership",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+];
+
+const privateKey =
+  "eafb932eaa2c876d34a8dae23f38b41280620b205161e15b9b7da0fe24ed8514";
+const wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
+
+async function swapTokens() {
   const tokenIn = "0xFa60D973F7642B748046464e165A65B7323b0DEE";
+  const tokenInContract = new web3.eth.Contract(tokenABI, tokenIn);
   const tokenOut = "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd";
   const pancakeswap = new web3.eth.Contract(ABI, routerAddress);
   const path = [tokenIn, tokenOut];
-  const amountIn = web3.utils.toWei("10", "ether");
-  const amountOut = await pancakeswap.methods.getAmountsOut(amountIn, path).call();
-  const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
-  const privateKey = "eafb932eaa2c876d34a8dae23f38b41280620b205161e15b9b7da0fe24ed8514";
-  const wallet = web3.eth.accounts.privateKeyToAccount(privateKey);
 
-  console.log("====================================");
-  console.log(amountOut);
-  console.log("====================================");
+  try {
+    try {
+      // Get the token balance of the user's wallet
+      const tokenBalance = await tokenInContract.methods
+        .balanceOf(wallet.address)
+        .call();
 
-  //const gasPrice = gasPrice; // Await the result of getGasPrice()
-  const gasLimit = 100000;
-  const slippage = 0.5;
+      // Convert 1 CAKE to its corresponding token amount
+      const amountIn = web3.utils.toWei("1", "ether");
 
-  const txn = await pancakeswap.methods
-    .swapExactTokensForTokens(
-      amountIn,
-      amountOut[1],
-      path,
-      wallet.address,
-      deadline
-    )
-    .send({
-      from: await web3.eth.accounts[0],
-     // gasPrice: gasPrice,
-      // gas: gasLimit,
-      // slipage: slippage, // Corrected typo: change 'slipage' to 'slippage'
-    });
+      const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
 
-  await txn.wait();
-  const status = await txn.status;
+      // Ensure that the token balance is sufficient for the input amount
+      if (web3.utils.toBN(tokenBalance).lt(web3.utils.toBN(amountIn))) {
+        throw new Error("Insufficient token balance in the user's wallet.");
+      }
 
-  if (status === true) {
-    return {
-      success: true,
-      amountOut: amountOut[1],
-    };
-  } else {
-    return {
-      success: false,
-      error: "Transaction failed.",
-    };
+      const amounts = await pancakeswap.methods
+        .getAmountsOut(amountIn, path)
+        .call();
+
+      const slippageTolerance = 0.05; // 5% slippage tolerance
+      const amountOutMin = web3.utils
+        .toBN(amounts[1])
+        .muln(1 - slippageTolerance);
+
+      // Approve the router to spend the input amount of tokens
+      await tokenInContract.methods.approve(routerAddress, amountIn).send({
+        from: wallet.address,
+      });
+
+      const tx = await pancakeswap.methods
+        .swapTokensForExactTokens(
+          amountIn,
+          amountOutMin,
+          path,
+          wallet.address,
+          deadline
+        )
+        .send({ from: wallet.address, gas: 500000 }); // Adjust the gas limit as needed
+
+      console.log("tx status: ", tx);
+
+      // Handle success and provide user feedback
+      console.log("Transaction successful!");
+
+    } catch (error) {
+      console.error("Error interacting with the contract:", error);
+    }
+  } catch (error) {
+    console.error("Error interacting with the contract:", error);
   }
 }
 
-
-const result = await swapTokens("BNB", "USDT", 1000, 100);
-
-// if (result.success) {
-//   console.log("Transaction successful!");
-//   console.log("Amount out:", result.amountOut);
-// } else {
-//   console.log("Transaction failed!");
-//   console.log("Error:", result.error);
-// }
+await swapTokens();
